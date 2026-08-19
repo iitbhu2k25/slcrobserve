@@ -1,98 +1,105 @@
-# cloudflared:
-  #   image: cloudflare/cloudflared:latest
-  #   command: tunnel run
-  #   restart: unless-stopped
-  #   environment:
-  #     - TUNNEL_TOKEN=eyJhIjoiMWY4NzY3MTc0N2Q1YjE3NDYwYWRkYWJkNzY4ZjY3NjEiLCJ0IjoiODMxNmI3YWItMTk1NS00OTljLWJkZGUtM2FjYTgwODM3MmYxIiwicyI6Ik1XTmxZMk5sTURBdE4yTTFZUzAwTW1SbExXSmxNekl0TTJaaE9EaGlOak0yT0RFeSJ9
-  #   networks:
-  #     - varuna_traefik_proxy
-      
-  # traefik:
-  #   image: traefik:v3.7
-  #   ports:
-  #     - "80:80"
-  #     - "8080:8080"
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #     - ./traefik/dynamic:/dynamic
-  #   networks:
-  #     - varuna_development
-  #     - varuna_traefik_proxy
-  #   command:
-  #     - "--entrypoints.web.address=:80"
-  #     - "--entrypoints.websecure.address=:443"
-  #     - "--entrypoints.websecure.http.tls=true"
-  #     - "--providers.file.filename=/dynamic/tls.yml"
-  #     - "--providers.docker=true"
-  #     - "--providers.docker.exposedbydefault=false"
-  #     - "--providers.docker.constraints=Label(`com.docker.compose.project`, `varuna-dss`)"
-  #     - "--api.insecure=true"
-  #     - "--log.level=INFO"
-  #     - "--accesslog=true"
-  #     - "--metrics.prometheus=true"
+name: monitor
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel run
+    restart: unless-stopped
+    environment:
+      - TUNNEL_TOKEN=eyJhIjoiMWY4NzY3MTc0N2Q1YjE3NDYwYWRkYWJkNzY4ZjY3NjEiLCJ0IjoiNzc1ODExMzgtMTFmZC00MDYyLWE1MzMtYmNmYTMzZGViOGJmIiwicyI6Ik5UazVOelZsTW1NdE5UUmpZUzAwTlRFMUxXRXlaVEl0TkdNMk4yWmpZak0wWkdSayJ9
+    networks:
+      - monitor_traefik_proxy
 
-  # node-exporter:
-  #   image: prom/node-exporter:latest
-  #   restart: always
-  #   networks:
-  #     - varuna_development
-  #   volumes:
-  #     - /proc:/host/proc:ro
-  #     - /sys:/host/sys:ro
-  #     - /:/rootfs:ro
-  #   command:
-  #     - '--path.procfs=/host/proc'
-  #     - '--path.sysfs=/host/sys'
-  #     - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+  traefik:
+    image: traefik:v3.7
+    ports:
+      - "90:80"
+      - "8090:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik/dynamic:/dynamic
+    networks:
+      - monitor_development
+      - monitor_traefik_proxy
+    command:
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http.tls=true"
+      - "--providers.file.filename=/dynamic/tls.yml"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.constraints=Label(`com.docker.compose.project`, `monitor`)"
+      - "--api.insecure=true"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      - "--metrics.prometheus=true"
 
-  # cadvisor:
-  #   image: gcr.io/cadvisor/cadvisor:latest
-  #   restart: always
-  #   networks:
-  #     - varuna_development
-  #   volumes:
-  #     - /:/rootfs:ro
-  #     - /var/run:/var/run:ro
-  #     - /sys:/sys:ro
-  #     - /var/lib/docker/:/var/lib/docker:ro
-  #     - /dev/disk/:/dev/disk:ro
-  #   devices:
-  #     - /dev/kmsg
-  #   privileged: true
+  node-exporter:
+    image: prom/node-exporter:latest
+    restart: always
+    networks:
+      - monitor_development
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
 
-  # prometheus:
-  #   image: prom/prometheus:latest
-  #   restart: always
-  #   networks:
-  #     - varuna_traefik_proxy
-  #     - varuna_development
-  #   volumes:
-  #     - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-  #     - varuna_prometheus_data:/prometheus
-  #   command:
-  #     - '--config.file=/etc/prometheus/prometheus.yml'
-  #     - '--storage.tsdb.retention.time=15d'
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    restart: always
+    networks:
+      - monitor_development
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    privileged: true
 
+  prometheus:
+    image: prom/prometheus:latest
+    restart: always
+    networks:
+      - monitor_traefik_proxy
+      - monitor_development
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - monitor_prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
 
+  grafana:
+    image: grafana/grafana:latest
+    restart: always
+    networks:
+      - monitor_traefik_proxy
+      - monitor_development
+    volumes:
+      - monitor_grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=changeme@121
+    depends_on:
+      - prometheus
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`monitor.slcrdss.in`)"
+      - "traefik.http.routers.grafana.entrypoints=web"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
 
-  # grafana:
-  #   image: grafana/grafana:latest
-  #   restart: always
-  #   networks:
-  #     - varuna_traefik_proxy
-  #     - varuna_development
-  #   volumes:
-  #     - varuna_grafana_data:/var/lib/grafana
-  #   environment:
-  #     - GF_SECURITY_ADMIN_USER=admin
-  #     - GF_SECURITY_ADMIN_PASSWORD=changeme
-  #   depends_on:
-  #     - prometheus
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.grafana.rule=Host(`monitor.slcrdss.in`)"
-  #     - "traefik.http.routers.grafana.entrypoints=web"
-  #     - "traefik.http.services.grafana.loadbalancer.server.port=3000"
 volumes:
-  varuna_prometheus_data:
-  varuna_grafana_data:
+  monitor_prometheus_data:
+  monitor_grafana_data:
+
+networks:
+  monitor_development:
+    external: true
+  monitor_traefik_proxy:
+    external: true
