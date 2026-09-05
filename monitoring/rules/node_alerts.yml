@@ -1,0 +1,58 @@
+groups:
+  - name: node-resource-alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value | printf \"%.1f\" }}% (threshold 80%)."
+
+      - alert: HighMemoryUsage
+        expr: 100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 80
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value | printf \"%.1f\" }}% (threshold 80%)."
+
+      - alert: HighDiskUsage
+        expr: 100 * (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|devtmpfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|devtmpfs"}) > 80
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: "Disk usage on {{ $labels.mountpoint }} is {{ $value | printf \"%.1f\" }}% (threshold 80%)."
+
+      - alert: HighSystemLoad
+        expr: node_load1 / on(instance) count(node_cpu_seconds_total{mode="idle"}) by (instance) > 1.5
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "High system load on {{ $labels.instance }}"
+          description: "1-minute load average is {{ $value | printf \"%.2f\" }}x the number of CPU cores (threshold 1.5x)."
+
+      - alert: DiskWillFillSoon
+        expr: predict_linear(node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|devtmpfs"}[1h], 4 * 3600) < 0
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk on {{ $labels.instance }} ({{ $labels.mountpoint }}) predicted to fill soon"
+          description: "Based on the last hour's fill rate, {{ $labels.mountpoint }} is projected to run out of space within 4 hours."
+
+  - name: availability-alerts
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} on {{ $labels.instance }} is down"
+          description: "Prometheus has been unable to reach {{ $labels.instance }} (job {{ $labels.job }})."

@@ -1,37 +1,37 @@
 name: monitor
 services:
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    command: tunnel run
-    restart: unless-stopped
-    environment:
-      - TUNNEL_TOKEN=eyJhIjoiMWY4NzY3MTc0N2Q1YjE3NDYwYWRkYWJkNzY4ZjY3NjEiLCJ0IjoiNzc1ODExMzgtMTFmZC00MDYyLWE1MzMtYmNmYTMzZGViOGJmIiwicyI6Ik5UazVOelZsTW1NdE5UUmpZUzAwTlRFMUxXRXlaVEl0TkdNMk4yWmpZak0wWkdSayJ9
-    networks:
-      - monitor_traefik_proxy
+  # cloudflared:
+  #   image: cloudflare/cloudflared:latest
+  #   command: tunnel run
+  #   restart: unless-stopped
+  #   environment:
+  #     - TUNNEL_TOKEN=eyJhIjoiMWY4NzY3MTc0N2Q1YjE3NDYwYWRkYWJkNzY4ZjY3NjEiLCJ0IjoiNzc1ODExMzgtMTFmZC00MDYyLWE1MzMtYmNmYTMzZGViOGJmIiwicyI6Ik5UazVOelZsTW1NdE5UUmpZUzAwTlRFMUxXRXlaVEl0TkdNMk4yWmpZak0wWkdSayJ9
+  #   networks:
+  #     - monitor_traefik_proxy
 
-  traefik:
-    image: traefik:v3.7
-    ports:
-      - "90:80"
-      - "8090:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./traefik/dynamic:/dynamic
-    networks:
-      - monitor_development
-      - monitor_traefik_proxy
-    command:
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.websecure.http.tls=true"
-      - "--providers.file.filename=/dynamic/tls.yml"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.constraints=Label(`com.docker.compose.project`, `monitor`)"
-      - "--api.insecure=true"
-      - "--log.level=INFO"
-      - "--accesslog=true"
-      - "--metrics.prometheus=true"
+  # traefik:
+  #   image: traefik:v3.7
+  #   ports:
+  #     - "90:80"
+  #     - "8090:8080"
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - ./traefik/dynamic:/dynamic
+  #   networks:
+  #     - monitor_development
+  #     - monitor_traefik_proxy
+  #   command:
+  #     - "--entrypoints.web.address=:80"
+  #     - "--entrypoints.websecure.address=:443"
+  #     - "--entrypoints.websecure.http.tls=true"
+  #     - "--providers.file.filename=/dynamic/tls.yml"
+  #     - "--providers.docker=true"
+  #     - "--providers.docker.exposedbydefault=false"
+  #     - "--providers.docker.constraints=Label(`com.docker.compose.project`, `monitor`)"
+  #     - "--api.insecure=true"
+  #     - "--log.level=INFO"
+  #     - "--accesslog=true"
+  #     - "--metrics.prometheus=true"
 
   node-exporter:
     image: prom/node-exporter:latest
@@ -68,8 +68,12 @@ services:
     networks:
       - monitor_traefik_proxy
       - monitor_development
+      - varuna_development
+    environment:
+      - TZ=Asia/Kolkata
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/rules:/etc/prometheus/rules:ro
       - monitor_prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -93,13 +97,62 @@ services:
       - "traefik.http.routers.grafana.rule=Host(`monitor.slcrdss.in`)"
       - "traefik.http.routers.grafana.entrypoints=web"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    ports:
+    - "3001:3000"
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    restart: always
+    networks:
+      - monitor_development
+    environment:
+      - TZ=Asia/Kolkata
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./monitoring/alertmanager-templates:/etc/alertmanager/templates:ro
+      - monitor_alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    ports:
+      - "9093:9093"
+
+  loki:
+    image: grafana/loki:latest
+    restart: always
+    networks:
+      - monitor_development
+    volumes:
+      - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - monitor_loki_data:/loki
+    command:
+      - '-config.file=/etc/loki/local-config.yaml'
+
+  promtail:
+    image: grafana/promtail:latest
+    restart: always
+    networks:
+      - monitor_development
+    volumes:
+      - ./monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command:
+      - '-config.file=/etc/promtail/config.yml'
+    depends_on:
+      - loki
 
 volumes:
   monitor_prometheus_data:
   monitor_grafana_data:
+  monitor_alertmanager_data:
+  monitor_loki_data:
 
 networks:
   monitor_development:
     external: false
   monitor_traefik_proxy:
     external: false
+  varuna_development:
+    name: varuna_development
+    external: true

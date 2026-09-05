@@ -1,0 +1,47 @@
+{{ define "custom.email.html" }}
+<div style="font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a;">
+
+  <div style="background: {{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}#c0392b{{ else }}#e08e0b{{ end }}{{ else }}#2e9e5b{{ end }}; color: #ffffff; padding: 18px 20px; border-radius: 8px 8px 0 0;">
+    <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; opacity: 0.85;">
+      {{ if eq .Status "firing" }}Firing{{ else }}Resolved{{ end }}{{ if .CommonLabels.severity }} &middot; {{ .CommonLabels.severity | title }}{{ end }}
+    </div>
+    <div style="font-size: 20px; font-weight: 600; margin-top: 4px;">
+      {{ .CommonLabels.alertname }} <span style="font-weight: 400; opacity: 0.85; font-size: 15px;">({{ len .Alerts }} alert{{ if gt (len .Alerts) 1 }}s{{ end }})</span>
+    </div>
+  </div>
+
+  <div style="border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 8px 8px; padding: 4px 20px; background: #ffffff;">
+    {{ range .Alerts }}
+    <div style="padding: 16px 0; border-bottom: 1px solid #eeeeee;">
+      <div style="font-size: 15px; font-weight: 600; margin-bottom: 4px; color: #1a1a1a;">
+        {{ .Annotations.summary }}
+      </div>
+      {{ if .Annotations.description }}
+      <div style="font-size: 14px; color: #4a4a4a; margin-bottom: 10px; line-height: 1.4;">
+        {{ .Annotations.description }}
+      </div>
+      {{ end }}
+      <table style="font-size: 13px; color: #666666; border-collapse: collapse;" cellpadding="0" cellspacing="0">
+        {{ if .Labels.mountpoint }}
+        <tr><td style="padding: 2px 10px 2px 0; color:#9a9a9a; white-space:nowrap;">Mount</td><td>{{ .Labels.mountpoint }}</td></tr>
+        {{ end }}
+        <tr><td style="padding: 2px 10px 2px 0; color:#9a9a9a; white-space:nowrap;">Started</td><td>{{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}</td></tr>
+        {{ if eq .Status "resolved" }}
+        <tr><td style="padding: 2px 10px 2px 0; color:#9a9a9a; white-space:nowrap;">Resolved</td><td>{{ .EndsAt.Format "2006-01-02 15:04:05 MST" }}</td></tr>
+        {{ end }}
+      </table>
+    </div>
+    {{ end }}
+
+    <div style="padding: 18px 0 10px;">
+      <a href="https://monitor.slcrdss.in" style="display:inline-block; background:#2d6cdf; color:#ffffff; text-decoration:none; padding:10px 20px; border-radius:6px; font-size:14px; font-weight:600;">
+        Open Grafana Dashboard
+      </a>
+    </div>
+  </div>
+
+  <div style="font-size: 11px; color: #aaaaaa; text-align: center; margin-top: 14px;">
+    Sent by Alertmanager &middot; slcrobserve monitoring
+  </div>
+</div>
+{{ end }}
