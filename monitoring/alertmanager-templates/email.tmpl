@@ -25,9 +25,9 @@
         {{ if .Labels.mountpoint }}
         <tr><td style="padding: 2px 10px 2px 0; color:#9a9a9a; white-space:nowrap;">Mount</td><td>{{ .Labels.mountpoint }}</td></tr>
         {{ end }}
-        <tr><td style="padding: 2px 10px 2px 0; color:#9a9a9a; white-space:nowrap;">Started</td><td>{{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}</td></tr>
+        <tr><td style="padding: 2px 10px 2px 0; color:#9a9a9a; white-space:nowrap;">Started</td><td>{{ .StartsAt.Local.Format "2006-01-02 15:04:05 MST" }}</td></tr>
         {{ if eq .Status "resolved" }}
-        <tr><td style="padding: 2px 10px 2px 0; color:#9a9a9a; white-space:nowrap;">Resolved</td><td>{{ .EndsAt.Format "2006-01-02 15:04:05 MST" }}</td></tr>
+        <tr><td style="padding: 2px 10px 2px 0; color:#9a9a9a; white-space:nowrap;">Resolved</td><td>{{ .EndsAt.Local.Format "2006-01-02 15:04:05 MST" }}</td></tr>
         {{ end }}
       </table>
     </div>

@@ -108,6 +108,8 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=15d'
+    ports:
+      - "9090:9090"
 
   grafana:
     image: grafana/grafana:latest
@@ -127,8 +129,7 @@ services:
       - "traefik.http.routers.grafana.rule=Host(`monitor.slcrdss.in`)"
       - "traefik.http.routers.grafana.entrypoints=web"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-    ports:
-    - "3001:3000"
+
 
   alertmanager:
     image: prom/alertmanager:latest
@@ -144,8 +145,7 @@ services:
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
-    ports:
-      - "9093:9093"
+
 
   loki:
     image: grafana/loki:latest
