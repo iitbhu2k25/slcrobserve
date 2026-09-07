@@ -1,37 +1,36 @@
 name: monitor
 services:
-  # cloudflared:
-  #   image: cloudflare/cloudflared:latest
-  #   command: tunnel run
-  #   restart: unless-stopped
-  #   environment:
-  #     - TUNNEL_TOKEN=eyJhIjoiMWY4NzY3MTc0N2Q1YjE3NDYwYWRkYWJkNzY4ZjY3NjEiLCJ0IjoiNzc1ODExMzgtMTFmZC00MDYyLWE1MzMtYmNmYTMzZGViOGJmIiwicyI6Ik5UazVOelZsTW1NdE5UUmpZUzAwTlRFMUxXRXlaVEl0TkdNMk4yWmpZak0wWkdSayJ9
-  #   networks:
-  #     - monitor_traefik_proxy
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel run
+    restart: unless-stopped
+    environment:
+      - TUNNEL_TOKEN=eyJhIjoiMWY4NzY3MTc0N2Q1YjE3NDYwYWRkYWJkNzY4ZjY3NjEiLCJ0IjoiNzc1ODExMzgtMTFmZC00MDYyLWE1MzMtYmNmYTMzZGViOGJmIiwicyI6Ik5UazVOelZsTW1NdE5UUmpZUzAwTlRFMUxXRXlaVEl0TkdNMk4yWmpZak0wWkdSayJ9
+    networks:
+      - monitor_traefik_proxy
 
-  # traefik:
-  #   image: traefik:v3.7
-  #   ports:
-  #     - "90:80"
-  #     - "8090:8080"
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #     - ./traefik/dynamic:/dynamic
-  #   networks:
-  #     - monitor_development
-  #     - monitor_traefik_proxy
-  #   command:
-  #     - "--entrypoints.web.address=:80"
-  #     - "--entrypoints.websecure.address=:443"
-  #     - "--entrypoints.websecure.http.tls=true"
-  #     - "--providers.file.filename=/dynamic/tls.yml"
-  #     - "--providers.docker=true"
-  #     - "--providers.docker.exposedbydefault=false"
-  #     - "--providers.docker.constraints=Label(`com.docker.compose.project`, `monitor`)"
-  #     - "--api.insecure=true"
-  #     - "--log.level=INFO"
-  #     - "--accesslog=true"
-  #     - "--metrics.prometheus=true"
+  traefik:
+    image: traefik:v3.7
+    ports:
+      - "90:80"
+      - "8090:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - monitor_development
+      - monitor_traefik_proxy
+    command:
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http.tls=true"
+      - "--providers.file.filename=/dynamic/tls.yml"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.constraints=Label(`com.docker.compose.project`, `monitor`)"
+      - "--api.insecure=true"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      - "--metrics.prometheus=true"
 
   node-exporter:
     image: prom/node-exporter:latest
@@ -46,6 +45,37 @@ services:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:latest
+    restart: always
+    networks:
+      - monitor_development
+      - varuna_development
+    volumes:
+      - ./monitoring/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    command:
+      - '--config.file=/etc/blackbox_exporter/config.yml'
+
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:latest
+    restart: always
+    networks:
+      - monitor_development
+      - varuna_development
+    environment:
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    restart: always
+    networks:
+      - monitor_development
+      - varuna_development
+    environment:
+      - REDIS_ADDR=redis://${REDIS_HOST}:${REDIS_PORT}
+      - REDIS_USER=${REDIS_USER}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
