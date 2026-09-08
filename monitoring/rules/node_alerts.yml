@@ -50,7 +50,7 @@ groups:
     rules:
       - alert: TargetDown
         expr: up == 0
-        for: 30s
+        for: 2m
         labels:
           severity: critical
         annotations:
